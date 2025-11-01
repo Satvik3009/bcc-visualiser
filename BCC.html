@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biconnected Components Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #476495 0%, #1e293b 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #cbd5e1;
+            margin-bottom: 2rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .canvas-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            border: 2px solid #e2e8f0;
+            border-radius: 4px;
+            cursor: crosshair;
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #64748b;
+            color: white;
+        }
+
+        .btn-purple {
+            background: #9333ea;
+            color: white;
+        }
+
+        .btn-light {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .btn-danger {
+            background: #dc2626;
+            color: white;
+        }
+
+        .btn-purple.active, .btn-light.active {
+            background: #9333ea;
+            color: white;
+        }
+
+        .slider-container {
+            margin-top: 1rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        .step-info {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 0.5rem;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-size: 14px;
+        }
+
+        .legend-box {
+            width: 16px;
+            height: 16px;
+            border-radius: 2px;
+        }
+
+        .legend-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
+
+        .state-info {
+            font-size: 14px;
+        }
+
+        .state-info p {
+            margin-bottom: 0.5rem;
+        }
+
+        .component-list {
+            margin-left: 1rem;
+            margin-top: 0.25rem;
+        }
+
+        .dark-card {
+            background: #334155;
+            color: white;
+        }
+
+        .dark-card h2 {
+            color: white;
+        }
+
+        @media (max-width: 1024px) {
+            .grid {
+                grid-template-columns: 1fr;
+                margin-right: 20px;
+            }
+            .sidebar{
+                margin-right: 20px;
+            }
+        }
+
+        .icon {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Biconnected Components Visualizer</h1>
+        <p class="subtitle">DFS Tree • Articulation Points • Bridges • Back Edges</p>
+        
+        <div class="grid">
+            <div>
+                <div class="canvas-container">
+                    <canvas id="canvas" width="700" height="500"></canvas>
+                    
+                    <div class="controls">
+                        <button class="btn-primary" id="runBtn">Run DFS</button>
+                        <button class="btn-success" id="playBtn" style="display: none;">
+                            <span id="playIcon">&#9654;</span> <span id="playText">Play</span>
+                        </button>
+                        <button class="btn-secondary" id="resetBtn" style="display: none;">&#8634; Reset</button>
+                        <button class="btn-light" id="addNodeBtn">+ Add Node</button>
+                        <button class="btn-light" id="addEdgeBtn">Add Edge</button>
+                        <button class="btn-danger" id="clearBtn">&#128465; Clear All</button>
+                    </div>
+
+                    <div class="slider-container" id="sliderContainer" style="display: none;">
+                        <input type="range" id="stepSlider" min="0" max="0" value="0">
+                        <div class="step-info" id="stepInfo"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="card">
+                    <h2>Notations</h2>
+                    <div class="legend-item">
+                        <div class="legend-box" style="background: #16a34a;"></div>
+                        <span>Tree Edge</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box" style="background: #2563eb;"></div>
+                        <span>Back Edge</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-box" style="background: #dc2626;"></div>
+                        <span>Bridge</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-circle" style="background: #ef4444;"></div>
+                        <span>Articulation Point</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-circle" style="background: #f97316;"></div>
+                        <span>Currently Visiting</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-circle" style="background: #9333ea;"></div>
+                        <span>Backtracking</span>
+                    </div>
+                </div>
+
+                <div class="card" id="stateCard" style="display: none;">
+                    <h2>Current State</h2>
+                    <div class="state-info" id="stateInfo"></div>
+                </div>
+
+                <div class="card dark-card">
+                    <h2>About</h2>
+                    <div style="font-size: 14px;">
+                        <p style="margin-bottom: 0.5rem;"><strong>disc[u]:</strong> Discovery time</p>
+                        <p style="margin-bottom: 0.5rem;"><strong>low[u]:</strong> Lowest discovery time reachable</p>
+                        <p style="margin-bottom: 0.5rem;"><strong>Articulation Point:</strong> Removal disconnects graph</p>
+                        <p style="margin-bottom: 0.5rem;"><strong>Bridge:</strong> Edge whose removal disconnects graph</p>
+                        <p><strong>Biconnected Component:</strong> Maximal subgraph with no articulation points</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var nodes = [
+            { id: 0, x: 200, y: 100 },
+            { id: 1, x: 100, y: 200 },
+            { id: 2, x: 300, y: 200 },
+            { id: 3, x: 200, y: 300 },
+            { id: 4, x: 400, y: 300 },
+            { id: 5, x: 500, y: 200 }
+        ];
+        var edges = [
+            [0, 1], [0, 2], [1, 3], [2, 3], [2, 4], [4, 5]
+        ];
+        var dfsState = null;
+        var isPlaying = false;
+        var currentStep = 0;
+        var selectedNode = null;
+        var mode = 'view';
+        var animationInterval = null;
+
+        var colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+            '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B88B', '#A9DFBF'
+        ];
+
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+
+        function runDFS() {
+            var n = nodes.length;
+            var adj = Array.from({ length: n }, function() { return []; });
+            edges.forEach(function(edge) {
+                var u = edge[0];
+                var v = edge[1];
+                adj[u].push(v);
+                adj[v].push(u);
+            });
+
+            var visited = Array(n).fill(false);
+            var disc = Array(n).fill(-1);
+            var low = Array(n).fill(-1);
+            var parent = Array(n).fill(-1);
+            var articulationPoints = new Set();
+            var bridges = [];
+            var treeEdges = [];
+            var backEdges = [];
+            var time = 0;
+            var steps = [];
+
+            function dfs(u) {
+                visited[u] = true;
+                disc[u] = low[u] = time++;
+                var children = 0;
+
+                steps.push({
+                    visiting: u,
+                    disc: disc.slice(),
+                    low: low.slice(),
+                    treeEdges: treeEdges.slice(),
+                    backEdges: backEdges.slice(),
+                    articulationPoints: new Set(articulationPoints),
+                    bridges: bridges.slice()
+                });
+
+                for (var i = 0; i < adj[u].length; i++) {
+                    var v = adj[u][i];
+                    if (!visited[v]) {
+                        children++;
+                        parent[v] = u;
+                        treeEdges.push([u, v]);
+                        
+                        steps.push({
+                            exploring: [u, v],
+                            disc: disc.slice(),
+                            low: low.slice(),
+                            treeEdges: treeEdges.slice(),
+                            backEdges: backEdges.slice(),
+                            articulationPoints: new Set(articulationPoints),
+                            bridges: bridges.slice()
+                        });
+
+                        dfs(v);
+
+                        low[u] = Math.min(low[u], low[v]);
+
+                        if (parent[u] === -1 && children > 1) {
+                            articulationPoints.add(u);
+                        }
+                        if (parent[u] !== -1 && low[v] >= disc[u]) {
+                            articulationPoints.add(u);
+                        }
+                        if (low[v] > disc[u]) {
+                            bridges.push([u, v]);
+                        }
+
+                        steps.push({
+                            backtrack: u,
+                            fromNode: v,
+                            disc: disc.slice(),
+                            low: low.slice(),
+                            treeEdges: treeEdges.slice(),
+                            backEdges: backEdges.slice(),
+                            articulationPoints: new Set(articulationPoints),
+                            bridges: bridges.slice()
+                        });
+                    } else if (v !== parent[u]) {
+                        low[u] = Math.min(low[u], disc[v]);
+                        backEdges.push([u, v]);
+                        
+                        steps.push({
+                            backEdge: [u, v],
+                            disc: disc.slice(),
+                            low: low.slice(),
+                            treeEdges: treeEdges.slice(),
+                            backEdges: backEdges.slice(),
+                            articulationPoints: new Set(articulationPoints),
+                            bridges: bridges.slice()
+                        });
+                    }
+                }
+            }
+
+            for (var i = 0; i < n; i++) {
+                if (!visited[i]) {
+                    dfs(i);
+                }
+            }
+
+            var biconnectedComponents = findBiconnectedComponents(adj, bridges, n);
+            
+            steps.push({
+                final: true,
+                disc: disc.slice(),
+                low: low.slice(),
+                treeEdges: treeEdges.slice(),
+                backEdges: backEdges.slice(),
+                articulationPoints: new Set(articulationPoints),
+                bridges: bridges.slice(),
+                biconnectedComponents: biconnectedComponents
+            });
+
+            dfsState = { steps: steps, articulationPoints: articulationPoints, bridges: bridges };
+            currentStep = 0;
+            
+            document.getElementById('playBtn').style.display = 'flex';
+            document.getElementById('resetBtn').style.display = 'flex';
+            document.getElementById('sliderContainer').style.display = 'block';
+            document.getElementById('stepSlider').max = steps.length - 1;
+            document.getElementById('stateCard').style.display = 'block';
+            
+            updateStepInfo();
+            draw();
+        }
+
+        function findBiconnectedComponents(adj, bridges, n) {
+            var bridgeSet = new Set();
+            bridges.forEach(function(bridge) {
+                var u = bridge[0];
+                var v = bridge[1];
+                var key = Math.min(u, v) + '-' + Math.max(u, v);
+                bridgeSet.add(key);
+            });
+            var visited = Array(n).fill(false);
+            var components = [];
+
+            function dfs(u, component) {
+                visited[u] = true;
+                component.push(u);
+                
+                for (var i = 0; i < adj[u].length; i++) {
+                    var v = adj[u][i];
+                    var edgeKey = Math.min(u, v) + '-' + Math.max(u, v);
+                    if (!visited[v] && !bridgeSet.has(edgeKey)) {
+                        dfs(v, component);
+                    }
+                }
+            }
+
+            for (var i = 0; i < n; i++) {
+                if (!visited[i]) {
+                    var component = [];
+                    dfs(i, component);
+                    components.push(component);
+                }
+            }
+
+            return components;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            var step = dfsState ? dfsState.steps[currentStep] : null;
+
+            if (step && step.biconnectedComponents) {
+                step.biconnectedComponents.forEach(function(component, idx) {
+                    if (component.length > 1) {
+                        ctx.fillStyle = colors[idx % colors.length] + '33';
+                        ctx.beginPath();
+                        component.forEach(function(nodeId, i) {
+                            var node = nodes[nodeId];
+                            if (i === 0) {
+                                ctx.moveTo(node.x, node.y);
+                            } else {
+                                ctx.lineTo(node.x, node.y);
+                            }
+                        });
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                });
+            }
+
+            edges.forEach(function(edge) {
+                var u = edge[0];
+                var v = edge[1];
+                var n1 = nodes[u];
+                var n2 = nodes[v];
+                
+                var color = '#ccc';
+                var width = 2;
+                
+                if (step) {
+                    var isTreeEdge = step.treeEdges.some(function(e) {
+                        return (e[0] === u && e[1] === v) || (e[0] === v && e[1] === u);
+                    });
+                    var isBackEdge = step.backEdges.some(function(e) {
+                        return (e[0] === u && e[1] === v) || (e[0] === v && e[1] === u);
+                    });
+                    var isBridge = step.bridges.some(function(e) {
+                        return (e[0] === u && e[1] === v) || (e[0] === v && e[1] === u);
+                    });
+
+                    if (isBridge) {
+                        color = '#dc2626';
+                        width = 4;
+                    } else if (isTreeEdge) {
+                        color = '#16a34a';
+                        width = 3;
+                    } else if (isBackEdge) {
+                        color = '#2563eb';
+                        width = 3;
+                    }
+
+                    if (step.exploring && 
+                        ((step.exploring[0] === u && step.exploring[1] === v) ||
+                         (step.exploring[0] === v && step.exploring[1] === u))) {
+                        color = '#f97316';
+                        width = 4;
+                    }
+                }
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                ctx.moveTo(n1.x, n1.y);
+                ctx.lineTo(n2.x, n2.y);
+                ctx.stroke();
+            });
+
+            nodes.forEach(function(node) {
+                var isArticulation = step && step.articulationPoints.has(node.id);
+                var isVisiting = step && step.visiting === node.id;
+                var isBacktracking = step && step.backtrack === node.id;
+
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 20, 0, 2 * Math.PI);
+                
+                if (isArticulation) {
+                    ctx.fillStyle = '#ef4444';
+                } else if (isVisiting) {
+                    ctx.fillStyle = '#f97316';
+                } else if (isBacktracking) {
+                    ctx.fillStyle = '#9333ea';
+                } else {
+                    ctx.fillStyle = '#1e293b';
+                }
+                
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(node.id, node.x, node.y);
+
+                if (step && step.disc[node.id] !== -1) {
+                    ctx.fillStyle = '#000';
+                    ctx.font = '12px Arial';
+                    ctx.fillText(step.disc[node.id] + '/' + step.low[node.id], 
+                                 node.x, node.y - 35);
+                }
+            });
+        }
+
+        function updateStepInfo() {
+            if (!dfsState) return;
+            
+            var step = dfsState.steps[currentStep];
+            document.getElementById('stepInfo').textContent = 
+                'Step ' + (currentStep + 1) + ' of ' + dfsState.steps.length;
+            
+            var stateHTML = '';
+            if (step.visiting !== undefined) {
+                stateHTML += '<p><strong>Visiting:</strong> Node ' + step.visiting + '</p>';
+            }
+            if (step.exploring) {
+                stateHTML += '<p><strong>Exploring:</strong> Edge ' + step.exploring[0] + ' → ' + step.exploring[1] + '</p>';
+            }
+            if (step.backEdge) {
+                stateHTML += '<p><strong>Back Edge Found:</strong> ' + step.backEdge[0] + ' → ' + step.backEdge[1] + '</p>';
+            }
+            if (step.backtrack !== undefined) {
+                stateHTML += '<p><strong>Backtracking to:</strong> Node ' + step.backtrack + '</p>';
+            }
+            if (step.articulationPoints.size > 0) {
+                stateHTML += '<p><strong>Articulation Points:</strong> ' + Array.from(step.articulationPoints).join(', ') + '</p>';
+            }
+            if (step.bridges.length > 0) {
+                var bridgeStr = step.bridges.map(function(b) { return b[0] + '-' + b[1]; }).join(', ');
+                stateHTML += '<p><strong>Bridges:</strong> ' + bridgeStr + '</p>';
+            }
+            if (step.biconnectedComponents) {
+                stateHTML += '<p><strong>Biconnected Components:</strong></p>';
+                step.biconnectedComponents.forEach(function(comp, idx) {
+                    stateHTML += '<div class="component-list"><span style="color: ' + colors[idx % colors.length] + '">●</span> ' + comp.join(', ') + '</div>';
+                });
+            }
+            
+            document.getElementById('stateInfo').innerHTML = stateHTML;
+        }
+
+        document.getElementById('runBtn').addEventListener('click', function() {
+            if (nodes.length === 0) {
+                alert('Please add some nodes first!');
+                return;
+            }
+            runDFS();
+        });
+
+        document.getElementById('playBtn').addEventListener('click', function() {
+            isPlaying = !isPlaying;
+            document.getElementById('playIcon').innerHTML = isPlaying ? '&#9208;' : '&#9654;';
+            document.getElementById('playText').textContent = isPlaying ? 'Pause' : 'Play';
+            
+            if (isPlaying) {
+                animationInterval = setInterval(function() {
+                    if (currentStep < dfsState.steps.length - 1) {
+                        currentStep++;
+                        document.getElementById('stepSlider').value = currentStep;
+                        updateStepInfo();
+                        draw();
+                    } else {
+                        isPlaying = false;
+                        clearInterval(animationInterval);
+                        document.getElementById('playIcon').innerHTML = '&#9654;';
+                        document.getElementById('playText').textContent = 'Play';
+                    }
+                }, 800);
+            } else {
+                clearInterval(animationInterval);
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            dfsState = null;
+            currentStep = 0;
+            isPlaying = false;
+            if (animationInterval) clearInterval(animationInterval);
+            document.getElementById('playBtn').style.display = 'none';
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('sliderContainer').style.display = 'none';
+            document.getElementById('stateCard').style.display = 'none';
+            draw();
+        });
+
+        document.getElementById('addNodeBtn').addEventListener('click', function() {
+            mode = mode === 'addNode' ? 'view' : 'addNode';
+            this.classList.toggle('active');
+            document.getElementById('addEdgeBtn').classList.remove('active');
+            selectedNode = null;
+        });
+
+        document.getElementById('addEdgeBtn').addEventListener('click', function() {
+            mode = mode === 'addEdge' ? 'view' : 'addEdge';
+            this.classList.toggle('active');
+            document.getElementById('addNodeBtn').classList.remove('active');
+            selectedNode = null;
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', function() {
+            nodes = [];
+            edges = [];
+            dfsState = null;
+            currentStep = 0;
+            isPlaying = false;
+            if (animationInterval) clearInterval(animationInterval);
+            document.getElementById('playBtn').style.display = 'none';
+            document.getElementById('resetBtn').style.display = 'none';
+            document.getElementById('sliderContainer').style.display = 'none';
+            document.getElementById('stateCard').style.display = 'none';
+            draw();
+        });
+
+        document.getElementById('stepSlider').addEventListener('input', function(e) {
+            currentStep = parseInt(e.target.value);
+            updateStepInfo();
+            draw();
+        });
+
+        canvas.addEventListener('click', function(e) {
+            var rect = canvas.getBoundingClientRect();
+            var x = e.clientX - rect.left;
+            var y = e.clientY - rect.top;
+
+            if (mode === 'addNode') {
+                nodes.push({ id: nodes.length, x: x, y: y });
+                draw();
+            } else if (mode === 'addEdge') {
+                var clickedNode = nodes.find(function(n) {
+                    return Math.sqrt((n.x - x) * (n.x - x) + (n.y - y) * (n.y - y)) < 20;
+                });
+                
+                if (clickedNode) {
+                    if (selectedNode === null) {
+                        selectedNode = clickedNode.id;
+                    } else {
+                        if (selectedNode !== clickedNode.id) {
+                            var edgeExists = edges.some(function(e) {
+                                return (e[0] === selectedNode && e[1] === clickedNode.id) ||
+                                       (e[0] === clickedNode.id && e[1] === selectedNode);
+                            });
+                            if (!edgeExists) {
+                                edges.push([selectedNode, clickedNode.id]);
+                                draw();
+                            }
+                        }
+                        selectedNode = null;
+                    }
+                }
+            }
+        });
+
+        draw();
+    </script>
+</body>
+</html>
